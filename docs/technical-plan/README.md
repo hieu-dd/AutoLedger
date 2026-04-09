@@ -16,6 +16,7 @@ This folder contains implementation plans per domain area, per screen route, and
 - `api/*.md`: plan per backend endpoint.
 - `test-strategy.md`: test matrix and failure injection plan.
 - `rollout-checklist.md`: phased rollout and acceptance gates.
+- `backlog-ordered.md`: implementation backlog tasks in execution order.
 
 ## Scope
 
