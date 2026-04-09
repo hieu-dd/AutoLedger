@@ -12,6 +12,7 @@ This backlog is ordered from foundation work to production hardening.
 
 ### AL-001 - Finalize dependencies and Gradle plugins
 - Priority: P0
+- Status: DONE
 - Modules: `gradle/libs.versions.toml`, `shared/build.gradle.kts`, `composeApp/build.gradle.kts`, `server/build.gradle.kts`
 - Steps: add versions from `SPECs.md`, enable SQLDelight and serialization plugins.
 - Failure cases: dependency conflicts, plugin mismatch, unresolved transitive dependencies.
