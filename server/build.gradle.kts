@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ktor)
+    alias(libs.plugins.ktlint)
     application
 }
 
@@ -9,7 +10,7 @@ group = "org.bakarot.autoledger"
 version = "1.0.0"
 application {
     mainClass.set("org.bakarot.autoledger.ApplicationKt")
-    
+
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
 }

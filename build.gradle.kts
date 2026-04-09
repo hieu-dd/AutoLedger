@@ -10,4 +10,16 @@ plugins {
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.ktor) apply false
     alias(libs.plugins.sqlDelight) apply false
+    alias(libs.plugins.ktlint) apply false
+}
+
+subprojects {
+    plugins.withId("org.jlleitschuh.gradle.ktlint") {
+        configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+            filter {
+                exclude("**/build/**")
+                exclude("**/generated/**")
+            }
+        }
+    }
 }
