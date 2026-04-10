@@ -57,12 +57,13 @@ Composable → ViewModel (StateFlow) → UseCase → Repository Interface
 ### Core Architectural Rules
 
 1. **Local-first:** All operations work offline; sync is always secondary.
-2. **Server-authoritative conflict resolution:** Server `serverTimestamp` wins; client preserves tombstone semantics.
+2. **Server-authoritative conflict resolution (post-MVP):** Server `serverTimestamp` wins; client preserves tombstone semantics. MVP is local-only.
 3. **Sync is idempotent:** Transaction IDs are natural idempotency keys.
 4. **Retry policy:** No retry on 4xx (except 401 + token refresh). Transient errors: backoff 500ms → 1s → 2s with jitter.
-5. **Token lifecycle:** Atomic persistence in Multiplatform Settings; single-flight refresh with client mutex.
+5. **Token lifecycle (post-MVP):** Atomic persistence in Multiplatform Settings; single-flight refresh with client mutex. MVP has no auth.
 6. **Error payloads:** Always include `code`, `message`, `requestId`, `details` fields.
 7. **PII:** Never log PII; use redaction in observability code.
+8. **Amount precision:** All monetary amounts are `Long` (smallest currency unit, dong for VND). UI formats for display. Never use `Double` for money.
 
 ### Code Style
 
@@ -82,8 +83,20 @@ Detailed technical specs live in `docs/technical-plan/`:
 
 ### Current Implementation Status
 
-**Done:** Project structure, Gradle KMP setup, ktlint, Material3 theme, Login screen UI, Ktor server bootstrap.
+**Target market:** Vietnam (priority bank: Vietcombank)
 
-**In progress:** Koin DI modules, SQLDelight schema, repository implementations, use cases.
+**Done:** Project structure, Gradle KMP setup, ktlint, Material3 theme, Login screen UI, Ktor server bootstrap, all dependencies declared in libs.versions.toml, SQLDelight plugin configured.
 
-**Not started:** Auth API integration, sync engine, notification listener, transaction CRUD screens, charts.
+**MVP priorities (in order):**
+1. Foundation: domain models (amount as Long, no sync fields), SQLDelight schema, repositories, Koin DI
+2. Notification capture: Vietnamese bank parser (VCB first), Android NotificationListenerService
+3. Core UI: Transaction CRUD screens, Dashboard, Settings with notification permission toggle
+4. Charts and server/sync are post-MVP
+
+**Not started:** Domain models, SQLDelight .sq files, notification parser, DI modules, repositories, use cases, transaction CRUD screens, charts, server auth/sync.
+
+**Key MVP decisions:**
+- Amount stored as Long in smallest currency unit (dong for VND)
+- No sync fields in MVP schema (is_deleted, sync_status, server_timestamp deferred)
+- No auth/login required for MVP (local-only)
+- Sync simplified: one-way push to server, pull only when local DB empty
