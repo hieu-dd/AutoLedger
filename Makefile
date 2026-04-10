@@ -1,0 +1,2 @@
+ktlintFormat:
+	./gradlew ktlintFormat

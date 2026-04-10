@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">AutoLedger</string>
+    <string name="app_logo_label">AL</string>
+    <string name="login_welcome_title">Welcome back</string>
+    <string name="login_welcome_subtitle">Access your financial sanctuary.</string>
+    <string name="login_email_label">EMAIL ADDRESS</string>
+    <string name="login_email_placeholder">name@domain.com</string>
+    <string name="login_password_label">PASSWORD</string>
+    <string name="login_password_placeholder">********</string>
+    <string name="login_forgot_password">Forgot Password?</string>
+    <string name="login_button">Login</string>
+    <string name="login_no_account_prefix">Don\'t have an account? </string>
+    <string name="login_sign_up">Sign up</string>
+    <string name="login_feature_hint">Smart Tracking: AutoLedger automatically organizes your spending so you don\'t have to. Experience seamless financial clarity with every transaction.</string>
+    <string name="login_feature_bullet">o</string>
+</resources>

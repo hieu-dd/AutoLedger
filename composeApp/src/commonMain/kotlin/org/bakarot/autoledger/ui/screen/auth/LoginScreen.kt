@@ -39,7 +39,23 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import autoledger.composeapp.generated.resources.Res
+import autoledger.composeapp.generated.resources.app_logo_label
+import autoledger.composeapp.generated.resources.app_name
+import autoledger.composeapp.generated.resources.login_button
+import autoledger.composeapp.generated.resources.login_email_label
+import autoledger.composeapp.generated.resources.login_email_placeholder
+import autoledger.composeapp.generated.resources.login_feature_bullet
+import autoledger.composeapp.generated.resources.login_feature_hint
+import autoledger.composeapp.generated.resources.login_forgot_password
+import autoledger.composeapp.generated.resources.login_no_account_prefix
+import autoledger.composeapp.generated.resources.login_password_label
+import autoledger.composeapp.generated.resources.login_password_placeholder
+import autoledger.composeapp.generated.resources.login_sign_up
+import autoledger.composeapp.generated.resources.login_welcome_subtitle
+import autoledger.composeapp.generated.resources.login_welcome_title
 import org.bakarot.autoledger.ui.theme.AutoLedgerDesign
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun LoginScreen() {
@@ -103,13 +119,13 @@ fun LoginScreen() {
                                 .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
                         Text(
-                            text = "AL",
+                            text = stringResource(Res.string.app_logo_label),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
                     }
                     Text(
-                        text = "AutoLedger",
+                        text = stringResource(Res.string.app_name),
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -118,13 +134,13 @@ fun LoginScreen() {
                 Spacer(modifier = Modifier.height(34.dp))
 
                 Text(
-                    text = "Welcome back",
+                    text = stringResource(Res.string.login_welcome_title),
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Access your financial sanctuary.",
+                    text = stringResource(Res.string.login_welcome_subtitle),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -132,7 +148,7 @@ fun LoginScreen() {
                 Spacer(modifier = Modifier.height(34.dp))
 
                 Text(
-                    text = "EMAIL ADDRESS",
+                    text = stringResource(Res.string.login_email_label),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -140,7 +156,7 @@ fun LoginScreen() {
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    placeholder = { Text("name@domain.com") },
+                    placeholder = { Text(stringResource(Res.string.login_email_placeholder)) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors =
@@ -165,13 +181,13 @@ fun LoginScreen() {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "PASSWORD",
+                        text = stringResource(Res.string.login_password_label),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        text = "Forgot Password?",
+                        text = stringResource(Res.string.login_forgot_password),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -181,7 +197,7 @@ fun LoginScreen() {
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    placeholder = { Text("********") },
+                    placeholder = { Text(stringResource(Res.string.login_password_placeholder)) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
@@ -224,7 +240,7 @@ fun LoginScreen() {
                             ),
                 ) {
                     Text(
-                        text = "Login",
+                        text = stringResource(Res.string.login_button),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
@@ -241,7 +257,7 @@ fun LoginScreen() {
                                     fontWeight = MaterialTheme.typography.bodyLarge.fontWeight,
                                 ),
                             ) {
-                                append("Don't have an account? ")
+                                append(stringResource(Res.string.login_no_account_prefix))
                             }
                             withStyle(
                                 SpanStyle(
@@ -250,7 +266,7 @@ fun LoginScreen() {
                                     textDecoration = TextDecoration.Underline,
                                 ),
                             ) {
-                                append("Sign up")
+                                append(stringResource(Res.string.login_sign_up))
                             }
                         },
                     style = MaterialTheme.typography.bodyMedium,
@@ -272,13 +288,13 @@ fun LoginScreen() {
                         verticalAlignment = Alignment.Top,
                     ) {
                         Text(
-                            text = "o",
+                            text = stringResource(Res.string.login_feature_bullet),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.tertiary,
                             modifier = Modifier.padding(top = 1.dp),
                         )
                         Text(
-                            text = "Smart Tracking: AutoLedger automatically organizes your spending so you don't have to. Experience seamless financial clarity with every transaction.",
+                            text = stringResource(Res.string.login_feature_hint),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
