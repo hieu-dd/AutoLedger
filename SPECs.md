@@ -105,9 +105,9 @@ server/src/main/
 
 Listens to banking/e-wallet notifications via `NotificationListenerService`. Extracts transaction data (amount, merchant, type) using regex pattern matching.
 
-**Supported sources (initial):**
-- Banks: BCA, Mandiri, BNI, BRI
-- E-wallets: GoPay, OVO, Dana, ShopeePay
+**Supported sources (initial — Vietnam market):**
+- Banks: Vietcombank (VCB) [priority], BIDV, Techcombank, MBBank, ACB, TPBank
+- E-wallets: MoMo, ZaloPay, VNPay, ShopeePay
 
 **Pipeline:**
 ```
@@ -135,7 +135,7 @@ Notification → Filter (known package?) → Parse (regex) → Transaction → S
 
 - Manage accounts: bank accounts, e-wallets, cash, credit cards
 - Track balance per account
-- Multi-currency support (default: IDR)
+- Multi-currency support (default: VND)
 
 ### 3.5 Authentication
 
@@ -156,9 +156,10 @@ Notification → Filter (known package?) → Parse (regex) → Transaction → S
 ## 4. Domain Models
 
 ```kotlin
+// MVP: sync fields (isDeleted, syncStatus) omitted. Added when full sync is implemented.
 data class Transaction(
     val id: String,                    // UUID, client-generated
-    val amount: Double,
+    val amount: Long,                  // smallest currency unit (e.g., dong for VND)
     val type: TransactionType,         // INCOME, EXPENSE
     val category: Category,
     val merchantOrDescription: String,
@@ -167,13 +168,14 @@ data class Transaction(
     val notes: String?,
     val isAutoCapture: Boolean,
     val createdAt: LocalDateTime,
-    val updatedAt: LocalDateTime,
-    val isDeleted: Boolean,            // soft delete for sync
-    val syncStatus: SyncStatus         // PENDING, SYNCED, CONFLICT
+    val updatedAt: LocalDateTime
+    // Post-MVP sync fields:
+    // val isDeleted: Boolean,          // soft delete for sync
+    // val syncStatus: SyncStatus       // PENDING, SYNCED, CONFLICT
 )
 
 enum class TransactionType { INCOME, EXPENSE }
-enum class SyncStatus { PENDING, SYNCED, CONFLICT }
+// Post-MVP: enum class SyncStatus { PENDING, SYNCED, CONFLICT }
 
 data class Category(
     val id: String,
@@ -187,8 +189,8 @@ data class Account(
     val id: String,
     val name: String,
     val type: AccountType,             // BANK, EWALLET, CASH, CREDIT_CARD
-    val balance: Double,
-    val currency: String               // "IDR", "USD"
+    val balance: Long,                 // smallest currency unit (e.g., dong for VND)
+    val currency: String               // "VND", "USD"
 )
 
 data class User(
@@ -207,9 +209,12 @@ data class User(
 ### 5.1 Client-Side (SQLDelight)
 
 ```sql
+-- MVP schema: sync fields (is_deleted, sync_status, server_timestamp) and
+-- SyncMetaEntity table omitted. Added via SQLDelight migration when sync is implemented.
+
 CREATE TABLE TransactionEntity (
     id TEXT NOT NULL PRIMARY KEY,
-    amount REAL NOT NULL,
+    amount INTEGER NOT NULL,           -- smallest currency unit (dong for VND)
     type TEXT NOT NULL,
     category_id TEXT NOT NULL,
     merchant_or_description TEXT NOT NULL,
@@ -218,10 +223,7 @@ CREATE TABLE TransactionEntity (
     notes TEXT,
     is_auto_capture INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    is_deleted INTEGER NOT NULL DEFAULT 0,
-    sync_status TEXT NOT NULL DEFAULT 'PENDING',
-    server_timestamp INTEGER
+    updated_at TEXT NOT NULL
 );
 
 CREATE TABLE CategoryEntity (
@@ -236,17 +238,20 @@ CREATE TABLE AccountEntity (
     id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
-    balance REAL NOT NULL DEFAULT 0.0,
-    currency TEXT NOT NULL DEFAULT 'IDR'
+    balance INTEGER NOT NULL DEFAULT 0,  -- smallest currency unit
+    currency TEXT NOT NULL DEFAULT 'VND'
 );
 
-CREATE TABLE SyncMetaEntity (
-    key TEXT NOT NULL PRIMARY KEY,
-    value TEXT NOT NULL
-);
+-- Post-MVP (added when sync is implemented):
+-- CREATE TABLE SyncMetaEntity (
+--     key TEXT NOT NULL PRIMARY KEY,
+--     value TEXT NOT NULL
+-- );
 ```
 
 ### 5.2 Server-Side (Exposed / PostgreSQL)
+
+> **Note:** Server implementation is post-MVP. Schema defined here for reference.
 
 ```
 users
@@ -259,7 +264,7 @@ users
 transactions
   id VARCHAR(36) PK
   user_id VARCHAR(36) FK → users.id
-  amount DOUBLE
+  amount BIGINT
   type VARCHAR(20)
   category_id VARCHAR(36)
   merchant_or_description VARCHAR(500)
@@ -321,15 +326,32 @@ data class PatternRule(
     val transactionType: TransactionType
 )
 
-// Example: BCA expense
+// Example: Vietcombank (VCB) credit notification
+// "So TK 00xxxxx tai VCB: +1,000,000 VND luc 10/04/2026 15:30. So du: 5,000,000 VND."
 PatternRule(
-    packageNames = listOf("com.bca"),
-    regex = Regex("""(?:Pengeluaran|Pembelian)\s+(?:sebesar\s+)?Rp\.?\s*([\d.,]+)\s+(?:di|ke)\s+(.+)"""),
+    packageNames = listOf("com.VCB"),
+    regex = Regex("""So TK\s+\S+\s+tai VCB:\s*\+?([\d.,]+)\s*(?:VND|d|đ)"""),
+    amountGroup = 1,
+    merchantGroup = null,
+    transactionType = TransactionType.INCOME
+)
+
+// Example: Vietcombank (VCB) debit notification
+// "TK 1234567890 (VCB) -500,000d. SD: 2,000,000d. ND: THANH TOAN DIEN THOAI"
+PatternRule(
+    packageNames = listOf("com.VCB"),
+    regex = Regex("""TK\s+\S+\s+\(VCB\)\s*-([\d.,]+)\s*(?:d|đ|VND).*?ND:\s*(.+)"""),
     amountGroup = 1,
     merchantGroup = 2,
     transactionType = TransactionType.EXPENSE
 )
 ```
+
+**Vietnamese amount format notes:**
+- Thousands separator: `.` or `,` (e.g., `1.000.000` or `1,000,000`)
+- Currency markers: `VND`, `d`, `đ`, `dong`
+- Amounts are whole numbers (no fractional dong)
+- Parser must: strip separators, remove currency markers, convert to `Long`
 
 ### Android Service Registration
 
@@ -350,6 +372,12 @@ Permission granted via `Settings > Notification access`. Detected via `Notificat
 ---
 
 ## 8. Sync Protocol
+
+> **MVP Scope:** The MVP implements one-way push only (local → server backup).
+> Pull from server occurs only when local database is empty (fresh install / data cleared).
+> Full bidirectional push-then-pull sync is deferred to post-MVP.
+
+### Full Sync Protocol (Post-MVP)
 
 ### Push Phase
 
@@ -421,40 +449,44 @@ All CRUD works offline. Unsynced items accumulate with `syncStatus = PENDING`. U
 
 3. **Server as Source of Truth** — During conflict resolution, the server version wins. Simpler than CRDT/vector clocks, acceptable for single-user multi-device scenario.
 
-4. **Soft Deletes** — Transactions are never physically deleted on client. `isDeleted = true` syncs to server so other devices learn about deletions. Server can physically clean up after 90 days.
+4. **Soft Deletes (Post-MVP)** — Deferred to post-MVP. MVP uses hard delete locally. When full sync is implemented: transactions are never physically deleted on client. `isDeleted = true` syncs to server so other devices learn about deletions. Server can physically clean up after 90 days.
 
 5. **Parser in shared/commonMain** — Even though only Android uses it via NotificationListenerService, the parsing logic is pure Kotlin string processing. Fully unit-testable without Android, reusable for iOS Share Extension later.
+
+6. **Amount as Long** — All monetary amounts stored as `Long` in smallest currency unit (dong for VND). Avoids floating-point precision errors. UI layer handles formatting (e.g., `1000000L` displayed as `1.000.000 đ`).
 
 ---
 
 ## 12. Implementation Phases
 
-### Phase 1: Foundation (Priority: Critical)
-> Database, DI, domain models, basic CRUD
+### Phase 1: Foundation + Notification Capture (Priority: Critical — MVP)
+> Domain models, database, DI, Vietnamese bank notification parsing
 
-- [ ] Add all dependencies to `libs.versions.toml` and module `build.gradle.kts`
-- [ ] Configure SQLDelight plugin with platform drivers (Android, iOS)
-- [ ] Define SQLDelight schema (all tables + queries)
-- [ ] Implement domain models in `shared/commonMain/domain/model/`
-- [ ] Implement repository interfaces in `shared/commonMain/domain/repository/`
+- [ ] Implement domain models in `shared/commonMain/domain/model/` (amount as Long, no sync fields)
+- [ ] Define SQLDelight schema (MVP: no sync columns, no SyncMetaEntity)
+- [ ] Implement repository interfaces in `shared/commonMain/domain/repository/` (transaction, account, category)
 - [ ] Implement `TransactionLocalDataSource` using SQLDelight
-- [ ] Implement `TransactionRepositoryImpl` (local-only)
+- [ ] Implement `TransactionRepositoryImpl` (local-only, hard delete)
 - [ ] Set up Koin modules in `shared` and `composeApp`
 - [ ] Seed default categories
+- [ ] Implement `PatternRegistry` + `NotificationParser` in shared (VCB priority)
+- [ ] Write unit tests for parser with Vietcombank sample notification texts
+- [ ] Implement `TransactionNotificationService` in androidMain
+- [ ] Register service in `AndroidManifest.xml`
+- [ ] Show confirmation notification after auto-capture
 
-### Phase 2: Core UI (Priority: Critical)
+### Phase 2: Core UI (Priority: Critical — MVP)
 > All screens with real data, fully functional offline app
 
 - [ ] Set up Compose Navigation + bottom nav
-- [ ] Define Material3 theme (colors, typography)
 - [ ] Implement `AddTransactionScreen` + ViewModel
-- [ ] Implement `TransactionListScreen` + ViewModel (date filter, search)
+- [ ] Implement `TransactionListScreen` + ViewModel (date filter, search, "captured" filter)
 - [ ] Implement `TransactionDetailScreen` (view + edit)
 - [ ] Implement `DashboardScreen` + ViewModel (summary + recent)
 - [ ] Implement `AccountsScreen` + ViewModel
-- [ ] Implement `SettingsScreen` (placeholder)
+- [ ] Implement `SettingsScreen` with notification permission toggle
 
-### Phase 3: Charts & Visualization (Priority: High)
+### Phase 3: Charts & Visualization (Priority: High — Post-MVP)
 > Data visualization screens
 
 - [ ] Integrate Koala Plot library
@@ -463,18 +495,7 @@ All CRUD works offline. Unsynced items accumulate with `syncStatus = PENDING`. U
 - [ ] Build `ChartsScreen`: pie chart, bar chart, trend line
 - [ ] Add period selector (week/month/3mo/year/custom)
 
-### Phase 4: Notification Capture (Priority: High)
-> Android auto-capture from bank notifications
-
-- [ ] Implement `NotificationParser` + `PatternRegistry` in shared
-- [ ] Write unit tests for parser with sample notification texts
-- [ ] Implement `TransactionNotificationService` in androidMain
-- [ ] Register service in `AndroidManifest.xml`
-- [ ] Add notification permission flow to Settings screen
-- [ ] Show confirmation notification after auto-capture
-- [ ] Add "captured transactions" filter in list
-
-### Phase 5: Backend (Priority: High)
+### Phase 4: Backend (Priority: High — Post-MVP)
 > Ktor server with auth and sync API
 
 - [ ] Configure Ktor plugins (JSON, JWT, StatusPages)
@@ -485,29 +506,30 @@ All CRUD works offline. Unsynced items accumulate with `syncStatus = PENDING`. U
 - [ ] Add rate limiting and input validation
 - [ ] Write integration tests
 
-### Phase 6: Client Sync (Priority: Medium)
-> Connect client to backend
+### Phase 5: Client Sync (Priority: Medium — Post-MVP)
+> Connect client to backend (one-way push first, full sync later)
 
 - [ ] Implement `KtorApiService` with Ktor Client
 - [ ] Configure auth interceptor + token refresh
 - [ ] Implement `AuthRepositoryImpl` (Multiplatform Settings)
-- [ ] Implement `SyncRepositoryImpl`
-- [ ] Implement `SyncUseCase` (push-then-pull)
+- [ ] Implement `SyncRepositoryImpl` (MVP: push only, pull when local empty)
 - [ ] Build Login/Register screens + AuthViewModel
-- [ ] Add sync triggers (app launch, manual, background worker)
+- [ ] Add sync triggers (manual push from Settings)
 - [ ] Add sync status indicator in UI
+- [ ] Add SQLDelight migration: sync fields (is_deleted, sync_status, server_timestamp, SyncMetaEntity)
+- [ ] Implement full bidirectional sync with conflict resolution
 
-### Phase 7: Polish (Priority: Medium)
+### Phase 6: Polish (Priority: Medium — Post-MVP)
 > Production readiness
 
 - [ ] Error handling for network, parse, sync failures
 - [ ] Empty states for all screens
 - [ ] Swipe-to-delete with undo snackbar
-- [ ] Search in transaction list
 - [ ] Export to CSV
 - [ ] Onboarding flow (first launch)
 - [ ] Dark mode (Material3 dynamic theming)
 - [ ] Pagination for large transaction lists
+- [ ] Add more Vietnamese bank parsers (BIDV, Techcombank, MBBank, ACB, TPBank, MoMo, ZaloPay)
 - [ ] ProGuard/R8 rules for release
 
 ---

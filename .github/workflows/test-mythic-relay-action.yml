@@ -1,0 +1,23 @@
+name: Trigger Mythic Relay Action
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+  workflow_dispatch:
+jobs:
+  run-mythic-relay-action:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Run mythic relay action from branch
+        id: relay
+        uses: hieu-dd/mythic-relay/mythic-relay-action@feat/mythic-relay-action-issue-opened
+      - name: Print outputs
+        run: |
+          echo "is_issue_opened=${{ steps.relay.outputs.is_issue_opened }}"
+          echo "issue_number=${{ steps.relay.outputs.issue_number }}"
+          echo "issue_title=${{ steps.relay.outputs.issue_title }}"

@@ -4,6 +4,17 @@
 
 Implement reliable push-then-pull sync with server-authoritative conflict resolution.
 
+## MVP sync scope
+
+The MVP implements a simplified sync model:
+- **Push only:** Local transactions are pushed to the server (one-way backup). No conflict resolution needed since server always accepts.
+- **Pull only when empty:** Client pulls from server only when the local database is empty (fresh install or data cleared). This avoids bidirectional merge complexity.
+- **No sync status tracking:** The MVP schema omits `syncStatus`, `is_deleted`, and `server_timestamp` fields. Transactions are simply posted to the server as a backup.
+
+Full bidirectional push-then-pull sync with conflict resolution (described below) is deferred to post-MVP.
+
+## Full Sync Protocol (Post-MVP)
+
 ## Push phase steps
 
 1. Query local rows with `syncStatus = PENDING`.
