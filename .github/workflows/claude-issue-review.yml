@@ -1,0 +1,58 @@
+name: Claude Issue Review
+
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  review-issue:
+    if: contains(github.event.issue.labels.*.name, 'AI')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    concurrency:
+      group: claude-issue-review-${{ github.event.issue.number }}
+      cancel-in-progress: true
+
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      ANTHROPIC_BASE_URL: https://openrouter.ai/api
+      ANTHROPIC_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+    steps:
+      - name: Ensure OpenRouter secret exists
+        run: |
+          if [ -z "${OPENROUTER_API_KEY}" ]; then
+            echo "::error::OPENROUTER_API_KEY is missing. Check repository secrets."
+            exit 1
+          fi
+
+      - name: Install Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install GitHub MCP
+        run: |
+          claude mcp add-json github '{
+            "type": "http",
+            "url": "https://api.githubcopilot.com/mcp",
+            "headers": {
+              "Authorization": "Bearer '"$GITHUB_PAT"'"
+            }
+          }'
+
+      - name: Run Claude issue review
+        run: |
+          claude -p "Review issue #${{ github.event.issue.number }} in ${{ github.repository }}.
+          Focus on:
+          1) Clarify problem statement and scope,
+          2) Missing context and data,
+          3) Suggested acceptance criteria,
+          4) Risks and edge cases,
+          5) Concrete next actions.
+          Post the review as a comment on this issue via GitHub MCP." \
+          --dangerously-skip-permissions
