@@ -1,19 +1,20 @@
-name: Claude Issue Review
+name: Claude Issue Implement
 
 on:
   issues:
     types: [opened, labeled]
 
 jobs:
-  review-issue:
+  implement-issue:
     if: contains(github.event.issue.labels.*.name, 'AI')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       issues: write
+      pull-requests: write
 
     concurrency:
-      group: claude-issue-review-${{ github.event.issue.number }}
+      group: claude-issue-implement-${{ github.event.issue.number }}
       cancel-in-progress: true
 
     env:
@@ -45,14 +46,13 @@ jobs:
             }
           }'
 
-      - name: Run Claude issue review
+      - name: Run Claude issue implement
         run: |
-          claude -p "Review issue #${{ github.event.issue.number }} in ${{ github.repository }}.
-          Focus on:
-          1) Clarify problem statement and scope,
-          2) Missing context and data,
-          3) Suggested acceptance criteria,
-          4) Risks and edge cases,
-          5) Concrete next actions.
-          Post the review as a comment on this issue via GitHub MCP." \
+          claude -p "Implement issue #${{ github.event.issue.number }} in ${{ github.repository }}.
+          Requirements:
+          1) Understand the issue and implement the required code changes,
+          2) Run relevant checks/tests when possible,
+          3) Create a new branch, commit the changes with a clear message,
+          4) Open a draft pull request linked to this issue via GitHub MCP,
+          5) Comment on this issue with implementation summary, branch name, and draft PR link." \
           --dangerously-skip-permissions
